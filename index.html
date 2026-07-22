@@ -1,0 +1,2588 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discord Webhook Client</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* ───────────── Reset & Base ───────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+:root {
+  /* Backgrounds */
+  --bg-base:       #0f0f12;
+  --bg-canvas:     #16161b;
+  --bg-card:       #1d1d24;
+  --bg-elevated:   #25252e;
+  --bg-input:      #1a1a21;
+  --bg-hover:      #2b2b35;
+  --bg-active:     #32323d;
+
+  /* Borders */
+  --border:        #2f2f3a;
+  --border-soft:   #262631;
+  --border-strong: #3a3a47;
+
+  /* Text */
+  --text-1:        #f4f4f7;
+  --text-2:        #b9b9c4;
+  --text-3:        #7a7a86;
+  --text-4:        #555560;
+
+  /* Accent */
+  --accent:        #cf64ff;
+  --accent-soft:   #d987ff;
+  --accent-deep:   #b148e8;
+  --accent-bg:     rgba(207, 100, 255, 0.10);
+  --accent-bg-2:   rgba(207, 100, 255, 0.18);
+  --accent-glow:   rgba(207, 100, 255, 0.35);
+
+  /* Semantic */
+  --success:       #5bd687;
+  --success-bg:    rgba(91, 214, 135, 0.12);
+  --warning:       #ffba4d;
+  --warning-bg:    rgba(255, 186, 77, 0.12);
+  --error:         #ff5f6d;
+  --error-bg:      rgba(255, 95, 109, 0.12);
+
+  /* Radii */
+  --r-xs:  8px;
+  --r-sm:  12px;
+  --r-md:  16px;
+  --r-lg:  20px;
+  --r-xl:  24px;
+  --r-pill: 999px;
+
+  /* Motion */
+  --ease:        cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-out:    cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --t-fast: 0.18s;
+  --t-base: 0.28s;
+  --t-slow: 0.45s;
+
+  /* Shadows */
+  --shadow-1: 0 4px 14px rgba(0,0,0,0.28);
+  --shadow-2: 0 12px 36px rgba(0,0,0,0.45);
+  --shadow-accent: 0 8px 28px rgba(207, 100, 255, 0.32);
+}
+
+html, body {
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-1);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+}
+
+::selection { background: var(--accent-bg-2); color: var(--text-1); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); background-clip: padding-box; border: 2px solid transparent; }
+
+/* ───────────── App Layout ───────────── */
+.app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 0% 0%, rgba(207, 100, 255, 0.06), transparent 60%),
+    radial-gradient(800px 400px at 100% 100%, rgba(207, 100, 255, 0.04), transparent 60%),
+    var(--bg-base);
+}
+
+/* ───────────── Sidebar ───────────── */
+.sidebar {
+  background: var(--bg-canvas);
+  border-right: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  gap: 6px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 24px;
+}
+.brand-mark {
+  width: 36px; height: 36px;
+  border-radius: var(--r-sm);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+  box-shadow: var(--shadow-accent);
+  display: grid; place-items: center;
+  color: white;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: -0.04em;
+}
+.brand-title { font-weight: 700; font-size: 15px; letter-spacing: -0.02em; }
+.brand-sub   { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+.nav-section {
+  display: flex; flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+.nav-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-4);
+  padding: 12px 12px 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  user-select: none;
+  transition:
+    background var(--t-base) var(--ease),
+    color var(--t-base) var(--ease),
+    transform var(--t-fast) var(--ease);
+  position: relative;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text-1); }
+.nav-item:active { transform: scale(0.98); }
+.nav-item.active {
+  background: var(--accent-bg);
+  color: var(--accent-soft);
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -16px; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 18px;
+  background: var(--accent);
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  background: var(--bg-elevated);
+  font-size: 12px;
+  color: var(--text-2);
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.sidebar-footer span { color: var(--accent-soft); }
+
+/* ───────────── Main ───────────── */
+.main {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 32px 40px 48px;
+  scroll-behavior: smooth;
+}
+
+.page {
+  display: none;
+  animation: pageIn var(--t-slow) var(--ease) both;
+  max-width: 920px;
+  margin: 0 auto;
+}
+.page.active { display: block; }
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-header {
+  margin-bottom: 28px;
+}
+.page-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 6px;
+}
+.page-sub {
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+/* ───────────── Card ───────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-1);
+  transition: border-color var(--t-base) var(--ease), transform var(--t-base) var(--ease);
+}
+.card-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+}
+.card-desc {
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin-bottom: 16px;
+}
+.card-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* ───────────── Form Elements ───────────── */
+.label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+.input, .textarea, .select {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-sm);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 12px 14px;
+  outline: none;
+  transition:
+    border-color var(--t-base) var(--ease),
+    background var(--t-base) var(--ease),
+    box-shadow var(--t-base) var(--ease);
+}
+.input::placeholder, .textarea::placeholder { color: var(--text-4); }
+.input:hover, .textarea:hover, .select:hover { border-color: var(--border); }
+.input:focus, .textarea:focus, .select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+  background: var(--bg-elevated);
+}
+.textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.6;
+}
+.textarea.large { min-height: 180px; }
+.field-group { margin-bottom: 16px; }
+.field-group:last-child { margin-bottom: 0; }
+
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+/* ───────────── Buttons ───────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  padding: 11px 18px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  user-select: none;
+  background: var(--bg-elevated);
+  color: var(--text-1);
+  transition:
+    background var(--t-base) var(--ease),
+    border-color var(--t-base) var(--ease),
+    transform var(--t-fast) var(--ease-spring),
+    box-shadow var(--t-base) var(--ease);
+}
+.btn:hover { background: var(--bg-hover); }
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:disabled:active { transform: none; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+  color: white;
+  box-shadow: var(--shadow-accent);
+}
+.btn-primary:hover { background: linear-gradient(135deg, var(--accent-soft) 0%, var(--accent) 100%); }
+
+.btn-ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg-hover); color: var(--text-1); }
+
+.btn-danger { background: var(--error-bg); color: var(--error); border: 1px solid transparent; }
+.btn-danger:hover { background: rgba(255, 95, 109, 0.2); }
+
+.btn-sm { padding: 7px 12px; font-size: 12.5px; border-radius: var(--r-xs); }
+.btn-icon { padding: 8px; min-width: 34px; }
+.btn-block { width: 100%; }
+
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ───────────── Markdown Toolbar ───────────── */
+.md-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  border-bottom: none;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+.md-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 30px;
+  padding: 0 9px;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-xs);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--t-base) var(--ease);
+}
+.md-btn:hover { background: var(--bg-hover); color: var(--text-1); }
+.md-btn:active { transform: scale(0.95); }
+.md-btn.bold { font-weight: 800; }
+.md-btn.italic { font-style: italic; }
+.md-btn.underline { text-decoration: underline; }
+.md-btn.strike { text-decoration: line-through; }
+.md-btn.spoiler {
+  background: var(--bg-elevated);
+  color: var(--text-3);
+}
+.md-btn.spoiler:hover { color: var(--text-1); background: var(--bg-hover); }
+.md-divider {
+  width: 1px;
+  background: var(--border-soft);
+  margin: 4px 6px;
+}
+.md-toolbar + .textarea {
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+}
+
+/* ───────────── Chips / Tags ───────────── */
+.chip-row {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-pill);
+  font-size: 12.5px;
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--t-base) var(--ease);
+}
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+  background: var(--accent-bg);
+  transform: translateY(-1px);
+}
+.chip:active { transform: scale(0.97); }
+.chip.accent {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent-soft);
+}
+
+/* ───────────── Channel Selector ───────────── */
+.channel-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg);
+  margin-bottom: 20px;
+  position: relative;
+}
+.channel-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 8px rgba(91, 214, 135, 0.6);
+  flex-shrink: 0;
+}
+.channel-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.channel-select-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--text-1);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--t-base) var(--ease);
+}
+.channel-select-btn:hover { border-color: var(--accent); background: var(--bg-hover); }
+.channel-select-btn:active { transform: scale(0.99); }
+.channel-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 18px; right: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  z-index: 100;
+  padding: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  display: none;
+  animation: dropIn var(--t-base) var(--ease-spring);
+}
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.channel-dropdown.show { display: block; }
+.channel-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-2);
+  transition: all var(--t-base) var(--ease);
+}
+.channel-option:hover { background: var(--bg-hover); color: var(--text-1); }
+.channel-option.active {
+  background: var(--accent-bg);
+  color: var(--accent-soft);
+}
+.channel-option-mark {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text-4);
+  flex-shrink: 0;
+}
+.channel-option.active .channel-option-mark { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
+.channel-option-empty {
+  padding: 14px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+/* ───────────── Embed Preview ───────────── */
+.embed-preview-wrap {
+  background: #2b2d31;
+  padding: 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-soft);
+}
+.embed-preview-label {
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 600;
+  margin-bottom: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.embed {
+  background: #2b2d31;
+  border-left: 4px solid var(--accent);
+  border-radius: 4px;
+  padding: 12px 16px;
+  max-width: 520px;
+  color: #dbdee1;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.embed-author { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #f2f3f5; margin-bottom: 6px; }
+.embed-title { font-size: 15px; font-weight: 700; color: #f2f3f5; margin-bottom: 6px; word-break: break-word; }
+.embed-desc  { white-space: pre-wrap; word-break: break-word; margin-bottom: 8px; }
+.embed-fields { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 8px 0; }
+.embed-fields.has-inline { grid-template-columns: repeat(3, 1fr); }
+.embed-field { min-width: 0; }
+.embed-field-name { font-size: 13px; font-weight: 700; color: #f2f3f5; margin-bottom: 2px; word-break: break-word; }
+.embed-field-value { font-size: 13px; color: #dbdee1; white-space: pre-wrap; word-break: break-word; }
+.embed-image { margin-top: 8px; border-radius: 4px; max-width: 100%; max-height: 240px; object-fit: contain; }
+.embed-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 4px; float: right; margin-left: 12px; }
+.embed-footer { font-size: 12px; color: #b5bac1; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+
+/* ───────────── File Drop ───────────── */
+.dropzone {
+  position: relative;
+  border: 2px dashed var(--border);
+  border-radius: var(--r-lg);
+  padding: 40px 24px;
+  text-align: center;
+  background: var(--bg-input);
+  cursor: pointer;
+  transition:
+    border-color var(--t-base) var(--ease),
+    background var(--t-base) var(--ease),
+    transform var(--t-base) var(--ease);
+}
+.dropzone:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.dropzone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-bg-2);
+  transform: scale(1.01);
+}
+.dropzone-icon {
+  width: 44px; height: 44px;
+  margin: 0 auto 14px;
+  background: var(--accent-bg);
+  border-radius: var(--r-md);
+  display: grid; place-items: center;
+  color: var(--accent-soft);
+}
+.dropzone-title { font-size: 14.5px; font-weight: 700; margin-bottom: 4px; }
+.dropzone-sub   { font-size: 12.5px; color: var(--text-3); }
+.dropzone input[type="file"] { display: none; }
+
+.file-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.file-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-elevated);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-soft);
+  animation: slideIn 0.3s var(--ease) both;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.file-icon {
+  width: 36px; height: 36px;
+  background: var(--accent-bg);
+  color: var(--accent-soft);
+  border-radius: var(--r-xs);
+  display: grid; place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+.file-meta { flex: 1; min-width: 0; }
+.file-name { font-size: 13.5px; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+
+.progress {
+  width: 100%; height: 6px;
+  background: var(--bg-input);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  margin-top: 12px;
+}
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+  border-radius: var(--r-pill);
+  transition: width 0.3s var(--ease);
+  width: 0%;
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* ───────────── Tag Manager ───────────── */
+.tag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.tag-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  transition: all var(--t-base) var(--ease);
+  position: relative;
+  animation: slideIn 0.3s var(--ease) both;
+}
+.tag-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.tag-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: white;
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.tag-info { flex: 1; min-width: 0; }
+.tag-name { font-size: 13.5px; font-weight: 700; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-id   { font-size: 11px; color: var(--text-3); font-family: ui-monospace, 'SF Mono', Consolas, monospace; margin-top: 2px; }
+.tag-actions { display: flex; gap: 4px; }
+.tag-action {
+  width: 28px; height: 28px;
+  border-radius: var(--r-xs);
+  display: grid; place-items: center;
+  background: transparent;
+  color: var(--text-3);
+  border: none;
+  cursor: pointer;
+  transition: all var(--t-base) var(--ease);
+}
+.tag-action:hover { background: var(--bg-hover); color: var(--text-1); }
+.tag-action.danger:hover { background: var(--error-bg); color: var(--error); }
+
+.empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+/* ───────────── History ───────────── */
+.history-list { display: flex; flex-direction: column; gap: 8px; }
+.history-item {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  padding: 12px 16px;
+  transition: all var(--t-base) var(--ease);
+  animation: slideIn 0.3s var(--ease) both;
+}
+.history-item:hover { border-color: var(--border-strong); }
+.history-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  flex-shrink: 0;
+}
+.history-meta { flex: 1; min-width: 0; }
+.history-preview {
+  font-size: 13px;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  font-weight: 500;
+}
+.history-info {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 3px;
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+}
+.badge {
+  display: inline-flex;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  background: var(--accent-bg);
+  color: var(--accent-soft);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.badge.file { background: var(--success-bg); color: var(--success); }
+.badge.embed { background: var(--warning-bg); color: var(--warning); }
+
+/* ───────────── Channel Manager (Settings) ───────────── */
+.channel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  margin-bottom: 8px;
+  animation: slideIn 0.3s var(--ease) both;
+}
+.channel-row.active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.channel-row-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--r-xs);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  display: grid; place-items: center;
+  color: white;
+  font-weight: 800;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.channel-row-info { flex: 1; min-width: 0; }
+.channel-row-name { font-size: 13.5px; font-weight: 700; color: var(--text-1); }
+.channel-row-url  {
+  font-size: 11px; color: var(--text-3);
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.channel-row-actions { display: flex; gap: 4px; }
+
+/* ───────────── Toggle / Switch ───────────── */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch-slider {
+  position: absolute; inset: 0;
+  background: var(--bg-elevated);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: background var(--t-base) var(--ease);
+}
+.switch-slider::before {
+  content: '';
+  position: absolute;
+  height: 16px; width: 16px;
+  left: 3px; top: 3px;
+  background: var(--text-2);
+  border-radius: 50%;
+  transition: transform var(--t-base) var(--ease-spring), background var(--t-base) var(--ease);
+}
+.switch input:checked + .switch-slider { background: var(--accent); }
+.switch input:checked + .switch-slider::before { background: white; transform: translateX(18px); }
+
+/* ───────────── Color Picker Field ───────────── */
+.color-field {
+  display: flex; align-items: center; gap: 10px;
+}
+.color-swatch {
+  width: 44px; height: 44px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: transform var(--t-base) var(--ease-spring);
+}
+.color-swatch:hover { transform: scale(1.05); }
+.color-swatch input[type="color"] {
+  position: absolute; inset: -4px;
+  border: none; padding: 0;
+  cursor: pointer; opacity: 1;
+  background: transparent;
+}
+
+/* ───────────── Modal ───────────── */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 1000;
+  animation: fadeIn var(--t-base) var(--ease);
+}
+.modal-backdrop.show { display: flex; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 28px;
+  width: min(440px, 92vw);
+  box-shadow: var(--shadow-2);
+  animation: modalIn var(--t-slow) var(--ease-spring);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.92) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; }
+.modal-desc { font-size: 13px; color: var(--text-3); margin-bottom: 20px; }
+
+/* ───────────── Toast ───────────── */
+.toast-container {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  display: flex; flex-direction: column;
+  gap: 10px;
+  z-index: 2000;
+  pointer-events: none;
+}
+.toast {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px 18px;
+  min-width: 280px;
+  max-width: 360px;
+  box-shadow: var(--shadow-2);
+  display: flex; align-items: flex-start; gap: 12px;
+  pointer-events: auto;
+  animation: toastIn var(--t-slow) var(--ease-spring);
+  position: relative;
+  overflow: hidden;
+}
+.toast::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--accent);
+}
+.toast.success::before { background: var(--success); }
+.toast.error::before { background: var(--error); }
+.toast.warn::before { background: var(--warning); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.toast.hide { animation: toastOut 0.3s var(--ease) forwards; }
+@keyframes toastOut {
+  to { opacity: 0; transform: translateX(40px); }
+}
+.toast-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.toast-body { flex: 1; }
+.toast-title { font-size: 13px; font-weight: 700; }
+.toast-msg { font-size: 12.5px; color: var(--text-2); margin-top: 2px; line-height: 1.45; }
+
+/* ───────────── Misc ───────────── */
+.divider { height: 1px; background: var(--border-soft); margin: 16px 0; }
+.muted { color: var(--text-3); font-size: 12px; }
+.kbd {
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 11px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 2px 6px;
+  color: var(--text-2);
+}
+
+/* ───────────── Responsive ───────────── */
+@media (max-width: 880px) {
+  .app { grid-template-columns: 76px 1fr; }
+  .brand-title, .brand-sub, .nav-item span, .nav-section-label, .sidebar-footer { display: none; }
+  .brand { justify-content: center; padding: 8px 0 24px; }
+  .nav-item { justify-content: center; padding: 12px; }
+  .nav-item.active::before { display: none; }
+  .main { padding: 24px 20px; }
+  .row-2, .row-3 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ───────────── Sidebar ───────────── -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">Y</div>
+      <div>
+        <div class="brand-title">Discord Webhook</div>
+        <div class="brand-sub">Main Panel</div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">전송</div>
+      <div class="nav-item active" data-page="message">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>메시지</span>
+      </div>
+      <div class="nav-item" data-page="embed">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        <span>임베드</span>
+      </div>
+      <div class="nav-item" data-page="file">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        <span>파일</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">관리</div>
+      <div class="nav-item" data-page="tags">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        <span>태그 관리</span>
+      </div>
+      <div class="nav-item" data-page="history">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span>전송 기록</span>
+      </div>
+      <div class="nav-item" data-page="settings">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>설정</span>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      By. Discord <span>@hrn_yeon</span>
+    </div>
+  </aside>
+
+  <!-- ───────────── Main ───────────── -->
+  <main class="main">
+
+    <!-- ============ Message Page ============ -->
+    <section class="page active" id="page-message">
+      <div class="page-header">
+        <div class="page-title">메시지 전송</div>
+      </div>
+
+      <!-- Channel Selector -->
+      <div class="channel-selector">
+        <div class="channel-dot"></div>
+        <div class="channel-label">전송 채널</div>
+        <button class="channel-select-btn" id="channel-trigger" onclick="toggleChannelDropdown()">
+          <span id="channel-current-name">기본 채널</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="channel-dropdown" id="channel-dropdown"></div>
+      </div>
+
+      <div class="card">
+        <!-- Markdown toolbar -->
+        <div class="md-toolbar">
+          <button class="md-btn bold" onclick="wrapText('msg-input', '**', '**')" title="굵게">B</button>
+          <button class="md-btn italic" onclick="wrapText('msg-input', '*', '*')" title="기울임">I</button>
+          <button class="md-btn underline" onclick="wrapText('msg-input', '__', '__')" title="밑줄">U</button>
+          <button class="md-btn strike" onclick="wrapText('msg-input', '~~', '~~')" title="취소선">S</button>
+          <div class="md-divider"></div>
+          <button class="md-btn spoiler" onclick="wrapText('msg-input', '||', '||')" title="스포일러">||</button>
+          <button class="md-btn" onclick="wrapText('msg-input', '\`', '\`')" title="인라인 코드" style="font-family: ui-monospace, 'SF Mono', Consolas, monospace;">&lt;/&gt;</button>
+          <button class="md-btn" onclick="wrapText('msg-input', '\`\`\`\n', '\n\`\`\`')" title="코드 블록" style="font-family: ui-monospace, 'SF Mono', Consolas, monospace;">{ }</button>
+          <button class="md-btn" onclick="insertLinePrefix('msg-input', '&gt; ')" title="인용">&gt;</button>
+          <div class="md-divider"></div>
+          <button class="md-btn" onclick="insertLinePrefix('msg-input', '# ')" title="제목 1" style="font-weight: 800;">H1</button>
+          <button class="md-btn" onclick="insertLinePrefix('msg-input', '## ')" title="제목 2" style="font-weight: 700;">H2</button>
+          <button class="md-btn" onclick="insertLinePrefix('msg-input', '### ')" title="제목 3" style="font-weight: 600;">H3</button>
+          <button class="md-btn" onclick="insertLinePrefix('msg-input', '- ')" title="목록">•</button>
+        </div>
+        <textarea class="textarea large" id="msg-input" placeholder="전송할 메시지를 입력하세요."></textarea>
+
+        <div class="divider"></div>
+
+        <div class="card-row" style="margin-bottom: 12px;">
+          <div class="label" style="margin: 0;">빠른 태그 삽입</div>
+          <button class="btn btn-sm btn-ghost" onclick="switchPage('tags')">+ 새 태그 추가</button>
+        </div>
+        <div class="chip-row" id="quick-tags"></div>
+
+        <div class="divider"></div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="sendMessage()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+            전송
+          </button>
+          <button class="btn btn-ghost" onclick="document.getElementById('msg-input').value=''; updateCharCount();">초기화</button>
+          <span class="muted" style="margin-left:auto; align-self:center;" id="char-count">0 / 2,000</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Embed Page ============ -->
+    <section class="page" id="page-embed">
+      <div class="page-header">
+        <div class="page-title">임베드 수정 &amp; 전송</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">기본 정보</div>
+
+        <div class="field-group">
+          <label class="label">제목</label>
+          <input class="input" id="embed-title" placeholder="임베드 제목" oninput="renderEmbedPreview()">
+        </div>
+
+        <div class="field-group">
+          <label class="label">제목 URL</label>
+          <input class="input" id="embed-url" placeholder="https://example.com" oninput="renderEmbedPreview()">
+        </div>
+
+        <div class="field-group">
+          <label class="label">설명</label>
+          <textarea class="textarea" id="embed-desc" placeholder="임베드 본문 내용" oninput="renderEmbedPreview()"></textarea>
+        </div>
+
+        <div class="row-2">
+          <div class="field-group">
+            <label class="label">색상</label>
+            <div class="color-field">
+              <div class="color-swatch" style="background: #cf64ff;" id="embed-color-swatch">
+                <input type="color" id="embed-color" value="#cf64ff" oninput="onColorChange(this.value)">
+              </div>
+              <input class="input" id="embed-color-text" value="#cf64ff" maxlength="7" oninput="onColorTextChange(this.value)">
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="label">타임스탬프</label>
+            <div style="display:flex; gap:10px; align-items:center; height:44px;">
+              <label class="switch">
+                <input type="checkbox" id="embed-timestamp" onchange="renderEmbedPreview()">
+                <span class="switch-slider"></span>
+              </label>
+              <span class="muted">현재 시간정보 포함</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">작성자 / 푸터</div>
+
+        <div class="row-2">
+          <div class="field-group">
+            <label class="label">작성자 이름(상단)</label>
+            <input class="input" id="embed-author-name" placeholder="작성자 이름" oninput="renderEmbedPreview()">
+          </div>
+          <div class="field-group">
+            <label class="label">작성자 아이콘 URL(상단)</label>
+            <input class="input" id="embed-author-icon" placeholder="https://..." oninput="renderEmbedPreview()">
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="field-group">
+            <label class="label">하단 작성자 이름(하단)</label>
+            <input class="input" id="embed-footer-text" placeholder="푸터 내용" oninput="renderEmbedPreview()">
+          </div>
+          <div class="field-group">
+            <label class="label">작성자 아이콘 URL(하단)</label>
+            <input class="input" id="embed-footer-icon" placeholder="https://..." oninput="renderEmbedPreview()">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">이미지</div>
+        <div class="row-2">
+          <div class="field-group">
+            <label class="label">메인 이미지 URL</label>
+            <input class="input" id="embed-image" placeholder="https://..." oninput="renderEmbedPreview()">
+          </div>
+          <div class="field-group">
+            <label class="label">썸네일 URL</label>
+            <input class="input" id="embed-thumbnail" placeholder="https://..." oninput="renderEmbedPreview()">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-row" style="margin-bottom: 16px;">
+          <div>
+            <div class="card-title" style="margin-bottom: 0;">필드 (최대 25개)</div>
+          </div>
+          <button class="btn btn-sm btn-ghost" onclick="addEmbedField()">+ 필드 추가</button>
+        </div>
+        <div id="embed-fields"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">미리보기</div>
+        <div class="embed-preview-wrap">
+          <div class="embed" id="embed-preview">
+            <div class="muted">아직 입력된 내용이 없다.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="field-group">
+          <label class="label">함께 전송할 메시지 (선택)</label>
+          <textarea class="textarea" id="embed-content" placeholder="임베드와 함께 전송할 일반 메시지"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="sendEmbed()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+            임베드 전송
+          </button>
+          <button class="btn btn-ghost" onclick="resetEmbed()">전체 초기화</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ File Page ============ -->
+    <section class="page" id="page-file">
+      <div class="page-header">
+        <div class="page-title">파일 전송</div>
+        <div class="page-sub">폴더 전송 시 ZIP으로 자동 압축 후 전송 (단일 파일 10MB 제한)</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">업로드</div>
+        <div class="card-desc">파일을 드래그 or 폴더선택 버튼 클릭</div>
+
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+          <div class="dropzone-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          </div>
+          <div class="dropzone-title">파일을 여기에 놓으세요</div>
+          <div class="dropzone-sub">클릭하여 선택할 수도 있다 · 폴더 드래그 지원</div>
+          <input type="file" id="file-input" multiple onchange="handleFileSelect(event)">
+        </div>
+
+        <div class="btn-row" style="margin-top: 14px;">
+          <button class="btn btn-sm btn-ghost" onclick="document.getElementById('folder-input').click()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            폴더 선택
+          </button>
+          <input type="file" id="folder-input" webkitdirectory directory multiple style="display:none;" onchange="handleFolderSelect(event)">
+          <button class="btn btn-sm btn-ghost" onclick="clearFiles()">전체 제거</button>
+        </div>
+
+        <div class="file-list" id="file-list"></div>
+
+        <div class="progress" id="upload-progress" style="display:none;">
+          <div class="progress-bar" id="upload-bar"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">전송 옵션</div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <label style="display:flex; align-items:center; gap:12px; cursor:pointer;">
+            <input type="radio" name="zip-mode" value="auto" checked style="accent-color: var(--accent);">
+            <div>
+              <div style="font-size:13.5px; font-weight:600;">자동 (권장)</div>
+              <div class="muted">단일 파일은 그대로, 다중 파일·폴더는 ZIP 압축</div>
+            </div>
+          </label>
+          <label style="display:flex; align-items:center; gap:12px; cursor:pointer;">
+            <input type="radio" name="zip-mode" value="zip" style="accent-color: var(--accent);">
+            <div>
+              <div style="font-size:13.5px; font-weight:600;">항상 ZIP</div>
+              <div class="muted">모든 파일을 ZIP으로 묶어 1건으로 전송</div>
+            </div>
+          </label>
+          <label style="display:flex; align-items:center; gap:12px; cursor:pointer;">
+            <input type="radio" name="zip-mode" value="individual" style="accent-color: var(--accent);">
+            <div>
+              <div style="font-size:13.5px; font-weight:600;">개별 전송</div>
+              <div class="muted">각 파일을 별도 메시지로 전송 (최대 10건/회)</div>
+            </div>
+          </label>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="field-group">
+          <label class="label">함께 전송할 메시지 (선택)</label>
+          <input class="input" id="file-content" placeholder="첨부와 함께 보낼 텍스트">
+        </div>
+
+        <button class="btn btn-primary btn-block" onclick="sendFiles()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+          파일 전송
+        </button>
+      </div>
+    </section>
+
+    <!-- ============ Tag Manager Page ============ -->
+    <section class="page" id="page-tags">
+      <div class="page-header">
+        <div class="page-title">태그 관리</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">신규 태그 추가</div>
+
+        <div class="row-2">
+          <div class="field-group">
+            <label class="label">표시 이름</label>
+            <input class="input" id="new-tag-name" placeholder="ex) admin">
+          </div>
+          <div class="field-group">
+            <label class="label">사용자 ID</label>
+            <input class="input" id="new-tag-id" placeholder="ex) 1234567890123456789" pattern="\d{17,20}" maxlength="20">
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="addTag()">+ 태그 저장</button>
+      </div>
+
+      <div class="card">
+        <div class="card-row" style="margin-bottom: 16px;">
+          <div>
+            <div class="card-title">저장된 태그</div>
+            <div class="card-desc" style="margin: 0;"><span id="tag-count">0</span>개 저장됨</div>
+          </div>
+          <button class="btn btn-sm btn-danger" onclick="clearAllTags()">전체 삭제</button>
+        </div>
+        <div class="tag-grid" id="tag-grid"></div>
+      </div>
+    </section>
+
+    <!-- ============ History Page ============ -->
+    <section class="page" id="page-history">
+      <div class="page-header">
+        <div class="page-title">전송 기록</div>
+      </div>
+
+      <div class="card">
+        <div class="card-row" style="margin-bottom: 18px;">
+          <div>
+            <div class="card-title"><span id="history-count">0</span>건의 메시지</div>
+            <div class="card-desc" style="margin: 0;">최근 전송 순으로 정렬됨</div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-sm btn-ghost" onclick="deleteLastMessage()">최근 1건 삭제</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteAllMessages()">전체 삭제</button>
+          </div>
+        </div>
+
+        <div class="history-list" id="history-list"></div>
+      </div>
+    </section>
+
+    <!-- ============ Settings Page ============ -->
+    <section class="page" id="page-settings">
+      <div class="page-header">
+        <div class="page-title">설정</div>
+        <div class="page-sub">**모든 데이터는 브라우저 캐시에 로컬 저장**</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">전송 채널 관리</div>
+
+        <div id="channel-list" style="margin-bottom: 16px;"></div>
+
+        <div class="divider"></div>
+
+        <div class="row-2">
+          <div class="field-group">
+            <label class="label">채널 이름</label>
+            <input class="input" id="new-channel-name" placeholder="예: 메인 서버 - 알림">
+          </div>
+          <div class="field-group">
+            <label class="label">Webhook URL</label>
+            <input type="password" class="input" id="new-channel-url" placeholder="https://discord.com/api/webhooks/...">
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="addChannel()">+ 채널 추가</button>
+          <button class="btn btn-ghost btn-sm" onclick="testNewChannel()">새 URL 테스트</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">데이터</div>
+        <div class="card-desc">저장된 태그·채널·전송 기록을 내보내거나 초기화한다.</div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="exportData()">데이터 내보내기</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('import-file').click()">데이터 가져오기</button>
+          <input type="file" id="import-file" accept=".json" style="display:none;" onchange="importData(event)">
+          <button class="btn btn-danger btn-sm" onclick="resetAll()">모든 데이터 초기화</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">정보</div>
+        <div style="display:grid; grid-template-columns: max-content 1fr; gap: 8px 24px; font-size: 12.5px; margin-top: 4px;">
+          <span class="muted">버전</span><span>1.0.0</span>
+          <span class="muted">전송 한도</span><span>텍스트 2,000자 / 파일 10MB (1회당)</span>
+          <span class="muted">오류 및 버그 제보</span><span><b style="color: var(--accent-soft);">@hrn_yeon</b></span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ───────────── Edit Tag Modal ───────────── -->
+<div class="modal-backdrop" id="edit-tag-modal">
+  <div class="modal">
+    <div class="modal-title">태그 수정</div>
+    <div class="modal-desc">저장된 태그의 이름과 ID를 변경한다.</div>
+
+    <div class="field-group">
+      <label class="label">표시 이름</label>
+      <input class="input" id="edit-tag-name">
+    </div>
+    <div class="field-group">
+      <label class="label">사용자 ID</label>
+      <input class="input" id="edit-tag-id" maxlength="20">
+    </div>
+
+    <div class="btn-row" style="justify-content: flex-end; margin-top: 20px;">
+      <button class="btn btn-ghost" onclick="closeModal('edit-tag-modal')">취소</button>
+      <button class="btn btn-primary" onclick="saveEditedTag()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── Edit Channel Modal ───────────── -->
+<div class="modal-backdrop" id="edit-channel-modal">
+  <div class="modal">
+    <div class="modal-title">채널 수정</div>
+    <div class="modal-desc">저장된 채널 정보를 변경한다.</div>
+
+    <div class="field-group">
+      <label class="label">채널 이름</label>
+      <input class="input" id="edit-channel-name">
+    </div>
+    <div class="field-group">
+      <label class="label">Webhook URL</label>
+      <input type="password" class="input" id="edit-channel-url">
+    </div>
+
+    <div class="btn-row" style="justify-content: flex-end; margin-top: 20px;">
+      <button class="btn btn-ghost" onclick="closeModal('edit-channel-modal')">취소</button>
+      <button class="btn btn-primary" onclick="saveEditedChannel()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── Confirm Modal ───────────── -->
+<div class="modal-backdrop" id="confirm-modal">
+  <div class="modal">
+    <div class="modal-title" id="confirm-title">확인</div>
+    <div class="modal-desc" id="confirm-desc">정말 진행하시겠습니까?</div>
+
+    <div class="btn-row" style="justify-content: flex-end; margin-top: 20px;">
+      <button class="btn btn-ghost" onclick="closeModal('confirm-modal')">취소</button>
+      <button class="btn btn-danger" id="confirm-ok">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── Toasts ───────────── -->
+<div class="toast-container" id="toasts"></div>
+
+<script>
+/* ════════════════════════════════════════════════
+   STATE
+   ════════════════════════════════════════════════ */
+const DEFAULT_WEBHOOK = "https://discord.com/api/webhooks/1506958305417891941/kgHGCVroNgOY0cqlJcSvMpfuOFMUqQg3hGa2lWTnq86wOjBlbr1CWR-ei5-6BiPjq7SL";
+const DISCORD_MESSAGE_LIMIT = 2000;
+const FILE_SIZE_LIMIT = 10 * 1024 * 1024; // 10MB
+
+const STORAGE_KEYS = {
+  CHANNELS:  'wc.channels',
+  ACTIVE_CH: 'wc.activeChannel',
+  TAGS:      'wc.userTags',
+  HISTORY:   'wc.history'
+};
+
+// Migrate legacy webhook key if exists
+const legacyWebhook = localStorage.getItem('wc.webhookUrl');
+if (legacyWebhook && !localStorage.getItem(STORAGE_KEYS.CHANNELS)) {
+  localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify([{id: 'default', name: '기본 채널', url: legacyWebhook}]));
+  localStorage.setItem(STORAGE_KEYS.ACTIVE_CH, 'default');
+  localStorage.removeItem('wc.webhookUrl');
+}
+
+let state = {
+  channels: JSON.parse(localStorage.getItem(STORAGE_KEYS.CHANNELS) || 'null') ||
+            [{id: 'default', name: '기본 채널', url: DEFAULT_WEBHOOK}],
+  activeChannelId: localStorage.getItem(STORAGE_KEYS.ACTIVE_CH) || 'default',
+  tags:    JSON.parse(localStorage.getItem(STORAGE_KEYS.TAGS) || '{}'),
+  history: JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY) || '[]'),
+  selectedFiles: [],
+  embedFields: [],
+  editingTagName: null,
+  editingChannelId: null
+};
+
+// Ensure activeChannelId points to existing channel
+if (!state.channels.find(c => c.id === state.activeChannelId)) {
+  state.activeChannelId = state.channels[0]?.id || 'default';
+}
+
+/* ════════════════════════════════════════════════
+   UTILITIES
+   ════════════════════════════════════════════════ */
+function getActiveChannel() {
+  return state.channels.find(c => c.id === state.activeChannelId) || state.channels[0];
+}
+function getActiveWebhookUrl() {
+  return getActiveChannel()?.url || DEFAULT_WEBHOOK;
+}
+function getSendUrl() {
+  const url = getActiveWebhookUrl();
+  return url + (url.includes('?') ? '&' : '?') + 'wait=true';
+}
+function getDeleteUrl(msgId) {
+  return getActiveWebhookUrl() + '/messages/' + msgId;
+}
+function persistChannels() { localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(state.channels)); }
+function persistActiveCh() { localStorage.setItem(STORAGE_KEYS.ACTIVE_CH, state.activeChannelId); }
+function persistTags()     { localStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(state.tags)); }
+function persistHistory()  { localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(state.history)); }
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  if (b < 1024*1024*1024) return (b/1024/1024).toFixed(1) + ' MB';
+  return (b/1024/1024/1024).toFixed(2) + ' GB';
+}
+function fileExt(name) {
+  const m = name.match(/\.([^.]+)$/);
+  return m ? m[1] : '?';
+}
+function hexToInt(hex) { return parseInt(hex.replace('#', ''), 16); }
+function nowKST() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+function randomId() { return Math.random().toString(36).slice(2, 10); }
+function validateWebhookUrl(url) {
+  return url.startsWith('https://discord.com/api/webhooks/') ||
+         url.startsWith('https://discordapp.com/api/webhooks/') ||
+         url.startsWith('https://canary.discord.com/api/webhooks/') ||
+         url.startsWith('https://ptb.discord.com/api/webhooks/');
+}
+
+/* ════════════════════════════════════════════════
+   TOAST
+   ════════════════════════════════════════════════ */
+function toast(title, msg = '', type = 'info', duration = 3200) {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icons = { success: '✓', error: '✕', warn: '!', info: 'i' };
+  el.innerHTML = `
+    <div class="toast-icon" style="color: var(--${type === 'success' ? 'success' : type === 'error' ? 'error' : type === 'warn' ? 'warning' : 'accent'});">${icons[type] || icons.info}</div>
+    <div class="toast-body">
+      <div class="toast-title">${escapeHtml(title)}</div>
+      ${msg ? `<div class="toast-msg">${escapeHtml(msg)}</div>` : ''}
+    </div>
+  `;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => {
+    el.classList.add('hide');
+    setTimeout(() => el.remove(), 300);
+  }, duration);
+}
+
+/* ════════════════════════════════════════════════
+   MODAL
+   ════════════════════════════════════════════════ */
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function confirmAction(title, desc, onConfirm) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-desc').textContent = desc;
+  const btn = document.getElementById('confirm-ok');
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  newBtn.addEventListener('click', () => {
+    closeModal('confirm-modal');
+    onConfirm();
+  });
+  openModal('confirm-modal');
+}
+
+document.querySelectorAll('.modal-backdrop').forEach(b => {
+  b.addEventListener('click', e => {
+    if (e.target === b) b.classList.remove('show');
+  });
+});
+
+/* ════════════════════════════════════════════════
+   NAVIGATION
+   ════════════════════════════════════════════════ */
+function switchPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelector(`.nav-item[data-page="${name}"]`)?.classList.add('active');
+
+  if (name === 'tags') renderTagGrid();
+  if (name === 'history') renderHistory();
+  if (name === 'message') renderQuickTags();
+  if (name === 'settings') renderChannelList();
+}
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => switchPage(item.dataset.page));
+});
+
+/* ════════════════════════════════════════════════
+   CHANNEL SELECTOR
+   ════════════════════════════════════════════════ */
+function renderChannelSelector() {
+  const ch = getActiveChannel();
+  document.getElementById('channel-current-name').textContent = ch?.name || '채널 없음';
+
+  const dd = document.getElementById('channel-dropdown');
+  if (state.channels.length === 0) {
+    dd.innerHTML = `<div class="channel-option-empty">등록된 채널이 없다.<br><a style="color:var(--accent-soft); cursor:pointer;" onclick="switchPage('settings'); toggleChannelDropdown(true);">설정에서 추가</a></div>`;
+    return;
+  }
+  dd.innerHTML = state.channels.map(c => `
+    <div class="channel-option ${c.id === state.activeChannelId ? 'active' : ''}" onclick="selectChannel('${c.id}')">
+      <div class="channel-option-mark"></div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(c.name)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleChannelDropdown(forceClose) {
+  const dd = document.getElementById('channel-dropdown');
+  if (forceClose === true) { dd.classList.remove('show'); return; }
+  dd.classList.toggle('show');
+}
+
+function selectChannel(id) {
+  state.activeChannelId = id;
+  persistActiveCh();
+  renderChannelSelector();
+  toggleChannelDropdown(true);
+  const ch = getActiveChannel();
+  toast('채널 전환', ch.name, 'success', 1800);
+}
+
+// Click outside to close
+document.addEventListener('click', e => {
+  const wrap = document.querySelector('.channel-selector');
+  if (wrap && !wrap.contains(e.target)) toggleChannelDropdown(true);
+});
+
+/* ════════════════════════════════════════════════
+   MENTION & EMOJI CONVERSION
+   ════════════════════════════════════════════════ */
+function convertMentions(text) {
+  // !@name or !@{name} → <@savedid> (saved tag conversion - process first)
+  text = text.replace(/!@\{?([^}\s<>]+)\}?/g, (m, name) => {
+    if (state.tags[name]) return `<@${state.tags[name]}>`;
+    return `⚠ 저장되지 않은 이름(${name})`;
+  });
+
+  // @{userid} → <@userid> (explicit braces format)
+  text = text.replace(/@\{(\d{17,20})\}/g, '<@$1>');
+
+  // @userid → <@userid> (direct format, only if not already inside <> )
+  text = text.replace(/(?<![<:])@(\d{17,20})\b/g, '<@$1>');
+
+  return text;
+}
+
+function convertEmojis(text) {
+  // <a:id> or <a:name:id> → keep as-is if already in valid Discord format
+  // Pattern: <number_only> → animated check via prefix
+  // We handle: <id>, <a:id>, <aid>
+
+  // Already-valid Discord emoji format <:name:id> or <a:name:id> → leave alone
+  // (we won't match these because they contain a colon)
+
+  // <a:digits> → <a:_:digits> (animated, explicit prefix)
+  text = text.replace(/<a:(\d{17,20})>/g, '<a:_:$1>');
+
+  // <a digits> 또는 <adigits> 형식도 처리: <a 12345> or <a12345>
+  text = text.replace(/<a(\d{17,20})>/g, '<a:_:$1>');
+
+  // <digits only> → <:_:digits> (static emoji)
+  // Exclude already-mention format <@digits>, <#digits>, <@&digits>, <@!digits>
+  text = text.replace(/(?<![@#&!])<(\d{17,20})>/g, '<:_:$1>');
+
+  return text;
+}
+
+function preprocessMessage(text) {
+  text = text.replace(/@e\b/gi, '@everyone');
+  text = convertMentions(text);
+  text = convertEmojis(text);
+  return text;
+}
+
+/* ════════════════════════════════════════════════
+   MARKDOWN HELPERS
+   ════════════════════════════════════════════════ */
+function wrapText(elId, prefix, suffix) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const start = el.selectionStart, end = el.selectionEnd;
+  const before = el.value.substring(0, start);
+  const selected = el.value.substring(start, end);
+  const after = el.value.substring(end);
+  el.value = before + prefix + selected + suffix + after;
+  el.focus();
+  if (selected) {
+    el.selectionStart = start + prefix.length;
+    el.selectionEnd = end + prefix.length;
+  } else {
+    el.selectionStart = el.selectionEnd = start + prefix.length;
+  }
+  el.dispatchEvent(new Event('input'));
+}
+
+function insertLinePrefix(elId, prefix) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const start = el.selectionStart;
+  const before = el.value.substring(0, start);
+  const after = el.value.substring(start);
+
+  const lineStart = before.lastIndexOf('\n') + 1;
+  const lineText = before.substring(lineStart);
+
+  el.value = before.substring(0, lineStart) + prefix + lineText + after;
+  el.focus();
+  el.selectionStart = el.selectionEnd = start + prefix.length;
+  el.dispatchEvent(new Event('input'));
+}
+
+/* ════════════════════════════════════════════════
+   QUICK TAGS
+   ════════════════════════════════════════════════ */
+function renderQuickTags() {
+  const wrap = document.getElementById('quick-tags');
+  const tags = Object.entries(state.tags);
+
+  let html = `
+    <span class="chip accent" onclick="insertAtCursor('msg-input', '@everyone ')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
+      everyone
+    </span>
+  `;
+  if (tags.length === 0) {
+    html += `<span class="muted" style="align-self:center;">저장된 태그 없음</span>`;
+  } else {
+    tags.forEach(([name, id]) => {
+      html += `<span class="chip" onclick="insertAtCursor('msg-input', '!@${escapeHtml(name)} ')" title="${escapeHtml(id)}">@${escapeHtml(name)}</span>`;
+    });
+  }
+  wrap.innerHTML = html;
+}
+
+function insertAtCursor(elId, text) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const start = el.selectionStart, end = el.selectionEnd;
+  el.value = el.value.substring(0, start) + text + el.value.substring(end);
+  el.focus();
+  el.selectionStart = el.selectionEnd = start + text.length;
+  el.dispatchEvent(new Event('input'));
+}
+
+/* ════════════════════════════════════════════════
+   MESSAGE SEND
+   ════════════════════════════════════════════════ */
+async function postChunk(content) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const r = await fetch(getSendUrl(), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({content})
+      });
+      if (r.ok) {
+        const data = await r.json();
+        logHistory({
+          id: data.id,
+          channelId: state.activeChannelId,
+          type: 'message',
+          preview: content.length > 60 ? content.slice(0, 60) + '…' : content,
+          at: nowKST()
+        });
+        return true;
+      }
+    } catch (e) { console.error(e); }
+  }
+  return false;
+}
+
+async function sendMessage() {
+  const raw = document.getElementById('msg-input').value;
+  if (!raw.trim()) { toast('빈 메시지', '내용을 입력하세요.', 'warn'); return; }
+
+  const processed = preprocessMessage(raw);
+  const chunks = [];
+  for (let i = 0; i < processed.length; i += DISCORD_MESSAGE_LIMIT)
+    chunks.push(processed.slice(i, i + DISCORD_MESSAGE_LIMIT));
+
+  let ok = 0;
+  for (let i = 0; i < chunks.length; i++) {
+    const success = await postChunk(chunks[i]);
+    if (success) ok++;
+    else { toast('전송 실패', `분할 ${i+1}/${chunks.length} 실패`, 'error'); break; }
+  }
+
+  if (ok === chunks.length) {
+    toast('전송 완료', `${chunks.length}건 분할 · ${getActiveChannel().name}`, 'success');
+    document.getElementById('msg-input').value = '';
+    updateCharCount();
+  }
+}
+
+/* ════════════════════════════════════════════════
+   EMBED BUILDER
+   ════════════════════════════════════════════════ */
+function addEmbedField(name = '', value = '', inline = false) {
+  if (state.embedFields.length >= 25) {
+    toast('한도 초과', '필드는 최대 25개까지 추가할 수 있다.', 'warn');
+    return;
+  }
+  state.embedFields.push({name, value, inline});
+  renderEmbedFields();
+  renderEmbedPreview();
+}
+
+function removeEmbedField(idx) {
+  state.embedFields.splice(idx, 1);
+  renderEmbedFields();
+  renderEmbedPreview();
+}
+
+function updateEmbedField(idx, key, val) {
+  state.embedFields[idx][key] = val;
+  renderEmbedPreview();
+}
+
+function renderEmbedFields() {
+  const wrap = document.getElementById('embed-fields');
+  if (state.embedFields.length === 0) {
+    wrap.innerHTML = `<div class="empty">저장된 필드 없음</div>`;
+    return;
+  }
+  wrap.innerHTML = state.embedFields.map((f, i) => `
+    <div class="card" style="background: var(--bg-elevated); padding: 16px; margin-bottom: 10px; border-radius: var(--r-md);">
+      <div class="row-2" style="gap: 12px;">
+        <div class="field-group" style="margin: 0;">
+          <label class="label">이름</label>
+          <input class="input" value="${escapeHtml(f.name)}" oninput="updateEmbedField(${i}, 'name', this.value)" placeholder="필드 이름">
+        </div>
+        <div class="field-group" style="margin: 0;">
+          <label class="label">값</label>
+          <input class="input" value="${escapeHtml(f.value)}" oninput="updateEmbedField(${i}, 'value', this.value)" placeholder="필드 값">
+        </div>
+      </div>
+      <div class="card-row" style="margin-top: 12px;">
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+          <label class="switch">
+            <input type="checkbox" ${f.inline ? 'checked' : ''} onchange="updateEmbedField(${i}, 'inline', this.checked)">
+            <span class="switch-slider"></span>
+          </label>
+          <span class="muted">인라인 표시</span>
+        </label>
+        <button class="btn btn-sm btn-danger" onclick="removeEmbedField(${i})">삭제</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function onColorChange(hex) {
+  document.getElementById('embed-color-text').value = hex;
+  document.getElementById('embed-color-swatch').style.background = hex;
+  renderEmbedPreview();
+}
+function onColorTextChange(hex) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+  document.getElementById('embed-color').value = hex;
+  document.getElementById('embed-color-swatch').style.background = hex;
+  renderEmbedPreview();
+}
+
+function buildEmbedObject() {
+  const title       = document.getElementById('embed-title').value.trim();
+  const url         = document.getElementById('embed-url').value.trim();
+  const description = document.getElementById('embed-desc').value;
+  const colorHex    = document.getElementById('embed-color-text').value;
+  const ts          = document.getElementById('embed-timestamp').checked;
+  const authorName  = document.getElementById('embed-author-name').value.trim();
+  const authorIcon  = document.getElementById('embed-author-icon').value.trim();
+  const footerText  = document.getElementById('embed-footer-text').value.trim();
+  const footerIcon  = document.getElementById('embed-footer-icon').value.trim();
+  const imageUrl    = document.getElementById('embed-image').value.trim();
+  const thumbUrl    = document.getElementById('embed-thumbnail').value.trim();
+
+  const embed = {};
+  if (title) embed.title = title;
+  if (url)   embed.url = url;
+  if (description) embed.description = description;
+  if (colorHex && /^#[0-9a-fA-F]{6}$/.test(colorHex)) embed.color = hexToInt(colorHex);
+  if (ts) embed.timestamp = new Date().toISOString();
+  if (authorName) embed.author = {name: authorName, ...(authorIcon ? {icon_url: authorIcon} : {})};
+  if (footerText) embed.footer = {text: footerText, ...(footerIcon ? {icon_url: footerIcon} : {})};
+  if (imageUrl) embed.image = {url: imageUrl};
+  if (thumbUrl) embed.thumbnail = {url: thumbUrl};
+
+  const fields = state.embedFields.filter(f => f.name.trim() && f.value.trim());
+  if (fields.length) embed.fields = fields;
+
+  return embed;
+}
+
+function renderEmbedPreview() {
+  const e = buildEmbedObject();
+  const wrap = document.getElementById('embed-preview');
+
+  if (!e.title && !e.description && !e.fields && !e.image && !e.author && !e.footer) {
+    wrap.innerHTML = `<div class="muted">입력된 내용 없음</div>`;
+    wrap.style.borderLeftColor = 'var(--accent)';
+    return;
+  }
+
+  wrap.style.borderLeftColor = e.color ? '#' + e.color.toString(16).padStart(6, '0') : 'var(--accent)';
+
+  let html = '';
+  if (e.thumbnail) html += `<img class="embed-thumb" src="${escapeHtml(e.thumbnail.url)}" onerror="this.style.display='none'">`;
+  if (e.author) {
+    html += `<div class="embed-author">`;
+    if (e.author.icon_url) html += `<img src="${escapeHtml(e.author.icon_url)}" style="width:24px;height:24px;border-radius:50%;" onerror="this.style.display='none'">`;
+    html += `${escapeHtml(e.author.name)}</div>`;
+  }
+  if (e.title) {
+    if (e.url) html += `<div class="embed-title"><a href="${escapeHtml(e.url)}" style="color:#00a8fc;text-decoration:none;" target="_blank">${escapeHtml(e.title)}</a></div>`;
+    else html += `<div class="embed-title">${escapeHtml(e.title)}</div>`;
+  }
+  if (e.description) html += `<div class="embed-desc">${escapeHtml(e.description)}</div>`;
+  if (e.fields) {
+    const hasInline = e.fields.some(f => f.inline);
+    html += `<div class="embed-fields ${hasInline ? 'has-inline' : ''}">`;
+    e.fields.forEach(f => {
+      html += `<div class="embed-field" style="${f.inline ? '' : 'grid-column: 1 / -1;'}">`;
+      html += `<div class="embed-field-name">${escapeHtml(f.name)}</div>`;
+      html += `<div class="embed-field-value">${escapeHtml(f.value)}</div></div>`;
+    });
+    html += `</div>`;
+  }
+  if (e.image) html += `<img class="embed-image" src="${escapeHtml(e.image.url)}" onerror="this.style.display='none'">`;
+  if (e.footer) {
+    html += `<div class="embed-footer">`;
+    if (e.footer.icon_url) html += `<img src="${escapeHtml(e.footer.icon_url)}" style="width:18px;height:18px;border-radius:50%;" onerror="this.style.display='none'">`;
+    html += `${escapeHtml(e.footer.text)}`;
+    if (e.timestamp) html += ` · ${new Date(e.timestamp).toLocaleString('ko-KR')}`;
+    html += `</div>`;
+  } else if (e.timestamp) {
+    html += `<div class="embed-footer">${new Date(e.timestamp).toLocaleString('ko-KR')}</div>`;
+  }
+
+  wrap.innerHTML = html;
+}
+
+async function sendEmbed() {
+  const embed = buildEmbedObject();
+  if (Object.keys(embed).length === 0) {
+    toast('빈 임베드', '최소 1개 이상의 필드를 입력하세요.', 'warn');
+    return;
+  }
+  const content = preprocessMessage(document.getElementById('embed-content').value || '');
+  const body = {embeds: [embed]};
+  if (content) body.content = content;
+
+  try {
+    const r = await fetch(getSendUrl(), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (r.ok) {
+      const data = await r.json();
+      logHistory({
+        id: data.id,
+        channelId: state.activeChannelId,
+        type: 'embed',
+        preview: embed.title || embed.description?.slice(0, 60) || '(임베드)',
+        at: nowKST()
+      });
+      toast('임베드 전송 완료', getActiveChannel().name, 'success');
+    } else {
+      const err = await r.text();
+      toast('전송 실패', `${r.status}: ${err.slice(0, 80)}`, 'error');
+    }
+  } catch (e) {
+    toast('전송 오류', e.message, 'error');
+  }
+}
+
+function resetEmbed() {
+  confirmAction('임베드 초기화', '입력한 모든 임베드 내용을 비우시겠습니까?', () => {
+    ['embed-title','embed-url','embed-desc','embed-author-name','embed-author-icon',
+     'embed-footer-text','embed-footer-icon','embed-image','embed-thumbnail','embed-content']
+      .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('embed-timestamp').checked = false;
+    onColorChange('#cf64ff');
+    state.embedFields = [];
+    renderEmbedFields();
+    renderEmbedPreview();
+    toast('초기화 완료', '', 'success');
+  });
+}
+
+/* ════════════════════════════════════════════════
+   FILE UPLOAD - with folder support fix
+   ════════════════════════════════════════════════ */
+function handleFileSelect(e) {
+  const files = Array.from(e.target.files);
+  state.selectedFiles.push(...files);
+  renderFileList();
+  e.target.value = '';
+}
+
+function handleFolderSelect(e) {
+  const files = Array.from(e.target.files);
+  // For folder selection, webkitRelativePath is set by browser
+  state.selectedFiles.push(...files);
+  renderFileList();
+  e.target.value = '';
+  if (files.length) toast('폴더 인식', `${files.length}개 파일 추가됨`, 'success', 2000);
+}
+
+function renderFileList() {
+  const wrap = document.getElementById('file-list');
+  if (state.selectedFiles.length === 0) { wrap.innerHTML = ''; return; }
+
+  wrap.innerHTML = state.selectedFiles.map((f, i) => {
+    const displayPath = f.webkitRelativePath || f._customPath || f.name;
+    return `
+      <div class="file-item">
+        <div class="file-icon">${escapeHtml(fileExt(f.name).slice(0, 4))}</div>
+        <div class="file-meta">
+          <div class="file-name">${escapeHtml(displayPath)}</div>
+          <div class="file-size">${formatBytes(f.size)}</div>
+        </div>
+        <button class="tag-action danger" onclick="removeFile(${i})">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function removeFile(idx) {
+  state.selectedFiles.splice(idx, 1);
+  renderFileList();
+}
+function clearFiles() {
+  state.selectedFiles = [];
+  renderFileList();
+}
+
+/* ─── Drag and drop with folder support ─── */
+const dropzone = document.getElementById('dropzone');
+
+['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, e => {
+  e.preventDefault(); e.stopPropagation();
+  dropzone.classList.add('drag-over');
+}));
+['dragleave'].forEach(ev => dropzone.addEventListener(ev, e => {
+  e.preventDefault(); e.stopPropagation();
+  if (e.target === dropzone) dropzone.classList.remove('drag-over');
+}));
+
+dropzone.addEventListener('drop', async e => {
+  e.preventDefault(); e.stopPropagation();
+  dropzone.classList.remove('drag-over');
+
+  const items = e.dataTransfer.items;
+  if (items && items.length > 0 && items[0].webkitGetAsEntry) {
+    // Use entry API to handle folders recursively
+    const entries = [];
+    for (let i = 0; i < items.length; i++) {
+      const entry = items[i].webkitGetAsEntry();
+      if (entry) entries.push(entry);
+    }
+
+    let collected = [];
+    let folderCount = 0;
+    for (const entry of entries) {
+      if (entry.isDirectory) folderCount++;
+      const files = await traverseEntry(entry, '');
+      collected.push(...files);
+    }
+
+    if (collected.length > 0) {
+      state.selectedFiles.push(...collected);
+      renderFileList();
+      if (folderCount > 0) {
+        toast('폴더 인식', `${folderCount}개 폴더 / 총 ${collected.length}개 파일`, 'success', 2200);
+      }
+    }
+  } else {
+    // Fallback for older browsers
+    const files = Array.from(e.dataTransfer.files);
+    state.selectedFiles.push(...files);
+    renderFileList();
+  }
+});
+
+async function traverseEntry(entry, path) {
+  if (entry.isFile) {
+    return new Promise(resolve => {
+      entry.file(file => {
+        // Attach the relative path
+        try {
+          Object.defineProperty(file, '_customPath', {
+            value: path + file.name,
+            writable: false,
+            configurable: true
+          });
+        } catch (err) { file._customPath = path + file.name; }
+        resolve([file]);
+      }, () => resolve([]));
+    });
+  } else if (entry.isDirectory) {
+    const reader = entry.createReader();
+    const allFiles = [];
+    let done = false;
+    while (!done) {
+      const batch = await new Promise(resolve => reader.readEntries(resolve, () => resolve([])));
+      if (batch.length === 0) { done = true; break; }
+      for (const sub of batch) {
+        const subFiles = await traverseEntry(sub, path + entry.name + '/');
+        allFiles.push(...subFiles);
+      }
+    }
+    return allFiles;
+  }
+  return [];
+}
+
+function setProgress(p) {
+  const bar = document.getElementById('upload-bar');
+  const wrap = document.getElementById('upload-progress');
+  wrap.style.display = p > 0 && p < 100 ? 'block' : 'none';
+  bar.style.width = p + '%';
+}
+
+async function sendFiles() {
+  if (state.selectedFiles.length === 0) {
+    toast('파일 없음', '전송할 파일을 선택하세요.', 'warn');
+    return;
+  }
+  const mode = document.querySelector('input[name="zip-mode"]:checked').value;
+  const content = preprocessMessage(document.getElementById('file-content').value || '');
+
+  let useZip = false;
+  if (mode === 'zip') useZip = true;
+  else if (mode === 'auto' && state.selectedFiles.length > 1) useZip = true;
+
+  try {
+    if (mode === 'individual') {
+      let ok = 0;
+      for (let i = 0; i < state.selectedFiles.length; i++) {
+        const f = state.selectedFiles[i];
+        setProgress(((i+1)/state.selectedFiles.length) * 100);
+        const success = await postFile(f, i === 0 ? content : '');
+        if (success) ok++;
+      }
+      setProgress(0);
+      toast('파일 전송 완료', `${ok}/${state.selectedFiles.length}건 성공`, ok === state.selectedFiles.length ? 'success' : 'warn');
+    } else if (useZip) {
+      toast('압축 중', `${state.selectedFiles.length}개 파일 ZIP 생성`, 'info', 1500);
+      const zip = new JSZip();
+      state.selectedFiles.forEach(f => {
+        const path = f.webkitRelativePath || f._customPath || f.name;
+        zip.file(path, f);
+      });
+      const firstPath = state.selectedFiles[0].webkitRelativePath || state.selectedFiles[0]._customPath;
+      const zipName = firstPath
+        ? firstPath.split('/')[0] + '.zip'
+        : 'files_' + Date.now() + '.zip';
+      const blob = await zip.generateAsync({type: 'blob', compression: 'DEFLATE'}, m => setProgress(m.percent / 2));
+      const file = new File([blob], zipName, {type: 'application/zip'});
+      setProgress(75);
+      const success = await postFile(file, content);
+      setProgress(0);
+      if (success) toast('압축 전송 완료', zipName, 'success');
+    } else {
+      const f = state.selectedFiles[0];
+      const success = await postFile(f, content);
+      if (success) toast('파일 전송 완료', f.name, 'success');
+    }
+  } catch (e) {
+    setProgress(0);
+    toast('전송 오류', e.message, 'error');
+  }
+}
+
+async function postFile(file, content = '') {
+  if (file.size > FILE_SIZE_LIMIT) {
+    toast('파일 크기 초과', `${file.name} (${formatBytes(file.size)} / 한도 10MB)`, 'error');
+    return false;
+  }
+  const fd = new FormData();
+  const payload = {};
+  if (content) payload.content = content;
+  fd.append('payload_json', JSON.stringify(payload));
+  fd.append('file', file, file.name);
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const r = await fetch(getSendUrl(), {method: 'POST', body: fd});
+      if (r.ok) {
+        const data = await r.json();
+        logHistory({
+          id: data.id,
+          channelId: state.activeChannelId,
+          type: 'file',
+          preview: `📎 ${file.name} (${formatBytes(file.size)})`,
+          at: nowKST()
+        });
+        return true;
+      } else {
+        const err = await r.text();
+        console.error('File upload failed:', r.status, err);
+      }
+    } catch (e) { console.error(e); }
+  }
+  toast('파일 전송 실패', file.name, 'error');
+  return false;
+}
+
+/* ════════════════════════════════════════════════
+   TAG MANAGER
+   ════════════════════════════════════════════════ */
+function addTag() {
+  const name = document.getElementById('new-tag-name').value.trim();
+  const id   = document.getElementById('new-tag-id').value.trim();
+
+  if (!name) { toast('이름 누락', '표시 이름을 입력하세요.', 'warn'); return; }
+  if (!/^\d{17,20}$/.test(id)) { toast('ID 형식 오류', '17~20자리 숫자만 허용됩니다.', 'warn'); return; }
+  if (state.tags[name]) { toast('중복', '이미 동일한 이름이 존재합니다.', 'warn'); return; }
+
+  state.tags[name] = id;
+  persistTags();
+  document.getElementById('new-tag-name').value = '';
+  document.getElementById('new-tag-id').value = '';
+  renderTagGrid();
+  toast('태그 저장', name, 'success');
+}
+
+function renderTagGrid() {
+  const wrap = document.getElementById('tag-grid');
+  const tags = Object.entries(state.tags);
+  document.getElementById('tag-count').textContent = tags.length;
+
+  if (tags.length === 0) {
+    wrap.innerHTML = `<div class="empty" style="grid-column: 1/-1;">저장된 태그 없음</div>`;
+    return;
+  }
+  wrap.innerHTML = tags.map(([name, id]) => `
+    <div class="tag-card">
+      <div class="tag-avatar">${escapeHtml(name.charAt(0).toUpperCase())}</div>
+      <div class="tag-info">
+        <div class="tag-name">${escapeHtml(name)}</div>
+        <div class="tag-id">${escapeHtml(id)}</div>
+      </div>
+      <div class="tag-actions">
+        <button class="tag-action" onclick="editTag('${escapeHtml(name)}')" title="수정">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="tag-action danger" onclick="deleteTag('${escapeHtml(name)}')" title="삭제">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function editTag(name) {
+  state.editingTagName = name;
+  document.getElementById('edit-tag-name').value = name;
+  document.getElementById('edit-tag-id').value = state.tags[name];
+  openModal('edit-tag-modal');
+}
+
+function saveEditedTag() {
+  const oldName = state.editingTagName;
+  const newName = document.getElementById('edit-tag-name').value.trim();
+  const newId   = document.getElementById('edit-tag-id').value.trim();
+
+  if (!newName) { toast('이름 누락', '', 'warn'); return; }
+  if (!/^\d{17,20}$/.test(newId)) { toast('ID 형식 오류', '', 'warn'); return; }
+  if (newName !== oldName && state.tags[newName]) { toast('중복', '', 'warn'); return; }
+
+  delete state.tags[oldName];
+  state.tags[newName] = newId;
+  persistTags();
+  closeModal('edit-tag-modal');
+  renderTagGrid();
+  toast('수정 완료', newName, 'success');
+}
+
+function deleteTag(name) {
+  confirmAction('태그 삭제', `'${name}' 태그를 삭제하시겠습니까?`, () => {
+    delete state.tags[name];
+    persistTags();
+    renderTagGrid();
+    toast('태그 삭제', name, 'success');
+  });
+}
+
+function clearAllTags() {
+  if (Object.keys(state.tags).length === 0) { toast('비어있음', '', 'info'); return; }
+  confirmAction('전체 태그 삭제', '저장된 모든 태그를 삭제하시겠습니까?', () => {
+    state.tags = {};
+    persistTags();
+    renderTagGrid();
+    toast('전체 삭제 완료', '', 'success');
+  });
+}
+
+/* ════════════════════════════════════════════════
+   CHANNEL MANAGER (Settings)
+   ════════════════════════════════════════════════ */
+function renderChannelList() {
+  const wrap = document.getElementById('channel-list');
+  if (state.channels.length === 0) {
+    wrap.innerHTML = `<div class="empty">등록된 채널이 없다.</div>`;
+    return;
+  }
+  wrap.innerHTML = state.channels.map(c => {
+    const masked = c.url.replace(/(\/webhooks\/\d+\/)[^/]+/, '$1••••••••');
+    const initial = c.name.charAt(0).toUpperCase();
+    return `
+      <div class="channel-row ${c.id === state.activeChannelId ? 'active' : ''}">
+        <div class="channel-row-icon">${escapeHtml(initial)}</div>
+        <div class="channel-row-info">
+          <div class="channel-row-name">${escapeHtml(c.name)}${c.id === state.activeChannelId ? ' <span class="badge" style="margin-left:6px;">활성</span>' : ''}</div>
+          <div class="channel-row-url">${escapeHtml(masked)}</div>
+        </div>
+        <div class="channel-row-actions">
+          ${c.id !== state.activeChannelId ? `<button class="tag-action" onclick="setActiveChannel('${c.id}')" title="활성화">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>` : ''}
+          <button class="tag-action" onclick="testChannel('${c.id}')" title="연결 테스트">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+          </button>
+          <button class="tag-action" onclick="editChannel('${c.id}')" title="수정">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="tag-action danger" onclick="deleteChannel('${c.id}')" title="삭제">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function addChannel() {
+  const name = document.getElementById('new-channel-name').value.trim();
+  const url  = document.getElementById('new-channel-url').value.trim();
+
+  if (!name) { toast('이름 누락', '채널 이름을 입력하세요.', 'warn'); return; }
+  if (!validateWebhookUrl(url)) { toast('잘못된 URL', 'Discord webhook URL 형식이 아닙니다.', 'error'); return; }
+  if (state.channels.some(c => c.name === name)) { toast('중복', '동일한 이름의 채널이 존재합니다.', 'warn'); return; }
+
+  const newCh = {id: randomId(), name, url};
+  state.channels.push(newCh);
+  persistChannels();
+
+  document.getElementById('new-channel-name').value = '';
+  document.getElementById('new-channel-url').value = '';
+
+  renderChannelList();
+  renderChannelSelector();
+  toast('채널 추가', name, 'success');
+}
+
+function setActiveChannel(id) {
+  state.activeChannelId = id;
+  persistActiveCh();
+  renderChannelList();
+  renderChannelSelector();
+  const ch = state.channels.find(c => c.id === id);
+  toast('활성 채널 변경', ch.name, 'success');
+}
+
+function editChannel(id) {
+  const ch = state.channels.find(c => c.id === id);
+  if (!ch) return;
+  state.editingChannelId = id;
+  document.getElementById('edit-channel-name').value = ch.name;
+  document.getElementById('edit-channel-url').value = ch.url;
+  openModal('edit-channel-modal');
+}
+
+function saveEditedChannel() {
+  const id = state.editingChannelId;
+  const ch = state.channels.find(c => c.id === id);
+  if (!ch) return;
+  const newName = document.getElementById('edit-channel-name').value.trim();
+  const newUrl  = document.getElementById('edit-channel-url').value.trim();
+  if (!newName) { toast('이름 누락', '', 'warn'); return; }
+  if (!validateWebhookUrl(newUrl)) { toast('잘못된 URL', '', 'error'); return; }
+  if (state.channels.some(c => c.id !== id && c.name === newName)) { toast('중복', '', 'warn'); return; }
+  ch.name = newName;
+  ch.url = newUrl;
+  persistChannels();
+  closeModal('edit-channel-modal');
+  renderChannelList();
+  renderChannelSelector();
+  toast('수정 완료', newName, 'success');
+}
+
+function deleteChannel(id) {
+  const ch = state.channels.find(c => c.id === id);
+  if (!ch) return;
+  if (state.channels.length === 1) { toast('삭제 불가', '최소 1개 채널은 유지해야 합니다.', 'warn'); return; }
+  confirmAction('채널 삭제', `'${ch.name}' 채널을 삭제하시겠습니까?`, () => {
+    state.channels = state.channels.filter(c => c.id !== id);
+    if (state.activeChannelId === id) {
+      state.activeChannelId = state.channels[0].id;
+      persistActiveCh();
+    }
+    persistChannels();
+    renderChannelList();
+    renderChannelSelector();
+    toast('채널 삭제', ch.name, 'success');
+  });
+}
+
+async function testChannel(id) {
+  const ch = state.channels.find(c => c.id === id);
+  if (!ch) return;
+  try {
+    const r = await fetch(ch.url, {method: 'GET'});
+    if (r.ok) {
+      const data = await r.json();
+      toast('연결 성공', `${ch.name} · 채널 ${data.channel_id || 'unknown'}`, 'success');
+    } else { toast('연결 실패', `상태코드: ${r.status}`, 'error'); }
+  } catch (e) { toast('연결 오류', e.message, 'error'); }
+}
+
+async function testNewChannel() {
+  const url = document.getElementById('new-channel-url').value.trim();
+  if (!validateWebhookUrl(url)) { toast('잘못된 URL', '', 'error'); return; }
+  try {
+    const r = await fetch(url, {method: 'GET'});
+    if (r.ok) {
+      const data = await r.json();
+      toast('연결 성공', `채널 ${data.channel_id || 'unknown'}`, 'success');
+    } else { toast('연결 실패', `상태코드: ${r.status}`, 'error'); }
+  } catch (e) { toast('연결 오류', e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════════════
+   HISTORY
+   ════════════════════════════════════════════════ */
+function logHistory(item) {
+  state.history.unshift(item);
+  if (state.history.length > 200) state.history = state.history.slice(0, 200);
+  persistHistory();
+  renderHistory();
+}
+
+function renderHistory() {
+  const wrap = document.getElementById('history-list');
+  document.getElementById('history-count').textContent = state.history.length;
+
+  if (state.history.length === 0) {
+    wrap.innerHTML = `<div class="empty">메시지 전송 기록 없음</div>`;
+    return;
+  }
+
+  wrap.innerHTML = state.history.map(h => {
+    const ch = state.channels.find(c => c.id === h.channelId);
+    const chName = ch ? ch.name : '(삭제된 채널)';
+    return `
+      <div class="history-item">
+        <div class="history-dot"></div>
+        <div class="history-meta">
+          <div class="history-preview">${escapeHtml(h.preview)}</div>
+          <div class="history-info">${escapeHtml(h.id)} · ${escapeHtml(chName)} · ${escapeHtml(h.at)}</div>
+        </div>
+        <span class="badge ${h.type === 'file' ? 'file' : h.type === 'embed' ? 'embed' : ''}">${h.type}</span>
+        <button class="btn btn-sm btn-ghost" onclick="deleteSingleMessage('${escapeHtml(h.id)}', '${escapeHtml(h.channelId)}')">삭제</button>
+      </div>
+    `;
+  }).join('');
+}
+
+async function deleteSingleMessage(msgId, channelId) {
+  const ch = state.channels.find(c => c.id === channelId);
+  const url = ch ? ch.url + '/messages/' + msgId : getDeleteUrl(msgId);
+  try {
+    const r = await fetch(url, {method: 'DELETE'});
+    if (r.ok || r.status === 204 || r.status === 404) {
+      state.history = state.history.filter(h => h.id !== msgId);
+      persistHistory();
+      renderHistory();
+      toast('삭제 완료', msgId, 'success');
+    } else {
+      toast('삭제 실패', `상태코드: ${r.status}`, 'error');
+    }
+  } catch (e) { toast('오류', e.message, 'error'); }
+}
+
+async function deleteLastMessage() {
+  if (state.history.length === 0) { toast('비어있음', '삭제할 메시지가 없다.', 'warn'); return; }
+  const h = state.history[0];
+  await deleteSingleMessage(h.id, h.channelId);
+}
+
+function deleteAllMessages() {
+  if (state.history.length === 0) { toast('비어있음', '', 'info'); return; }
+  confirmAction('전체 삭제', `${state.history.length}건의 메시지를 모두 삭제하시겠습니까?`, async () => {
+    let ok = 0;
+    const total = state.history.length;
+    for (const h of [...state.history]) {
+      const ch = state.channels.find(c => c.id === h.channelId);
+      const url = ch ? ch.url + '/messages/' + h.id : getDeleteUrl(h.id);
+      try {
+        const r = await fetch(url, {method: 'DELETE'});
+        if (r.ok || r.status === 204 || r.status === 404) {
+          state.history = state.history.filter(x => x.id !== h.id);
+          ok++;
+          persistHistory();
+          renderHistory();
+        }
+      } catch (e) { console.error(e); }
+    }
+    toast('전체 삭제 완료', `${ok}/${total}건 처리`, ok === total ? 'success' : 'warn');
+  });
+}
+
+/* ════════════════════════════════════════════════
+   DATA IMPORT / EXPORT
+   ════════════════════════════════════════════════ */
+function exportData() {
+  const data = {
+    channels: state.channels,
+    activeChannelId: state.activeChannelId,
+    tags: state.tags,
+    history: state.history
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `webhook_client_data_${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('내보내기 완료', '', 'success');
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.channels) { state.channels = data.channels; persistChannels(); }
+      if (data.activeChannelId) { state.activeChannelId = data.activeChannelId; persistActiveCh(); }
+      if (data.tags)     { state.tags = data.tags; persistTags(); }
+      if (data.history)  { state.history = data.history; persistHistory(); }
+      renderTagGrid(); renderHistory(); renderQuickTags();
+      renderChannelList(); renderChannelSelector();
+      toast('가져오기 완료', '', 'success');
+    } catch (err) {
+      toast('JSON 오류', err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function resetAll() {
+  confirmAction('모든 데이터 초기화', '채널·태그·기록을 모두 삭제합니다.', () => {
+    Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
+    state.tags = {}; state.history = [];
+    state.channels = [{id: 'default', name: '기본 채널', url: DEFAULT_WEBHOOK}];
+    state.activeChannelId = 'default';
+    persistChannels(); persistActiveCh();
+    renderTagGrid(); renderHistory(); renderQuickTags();
+    renderChannelList(); renderChannelSelector();
+    toast('초기화 완료', '', 'success');
+  });
+}
+
+/* ════════════════════════════════════════════════
+   CHAR COUNT
+   ════════════════════════════════════════════════ */
+function updateCharCount() {
+  const el = document.getElementById('msg-input');
+  const cnt = document.getElementById('char-count');
+  const len = el.value.length;
+  cnt.textContent = `${len.toLocaleString()} / 2,000`;
+  cnt.style.color = len > 2000 ? 'var(--warning)' : 'var(--text-3)';
+}
+document.getElementById('msg-input').addEventListener('input', updateCharCount);
+
+/* ════════════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+   ════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') {
+    const active = document.querySelector('.page.active').id;
+    if (active === 'page-message') { e.preventDefault(); sendMessage(); }
+    else if (active === 'page-embed') { e.preventDefault(); sendEmbed(); }
+    else if (active === 'page-file') { e.preventDefault(); sendFiles(); }
+  }
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-backdrop.show').forEach(m => m.classList.remove('show'));
+    toggleChannelDropdown(true);
+  }
+});
+
+/* ════════════════════════════════════════════════
+   INIT
+   ════════════════════════════════════════════════ */
+renderChannelSelector();
+renderChannelList();
+renderTagGrid();
+renderHistory();
+renderQuickTags();
+renderEmbedFields();
+renderEmbedPreview();
+updateCharCount();
+</script>
+
+</body>
+</html>
